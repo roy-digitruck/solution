@@ -1,6 +1,11 @@
 package pack;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import static pack.IO.readLine;
 import static pack.IO.readLineAsInteger;
@@ -10,17 +15,25 @@ public class Solution implements Runnable {
     public void run() {
         int testCases = readLineAsInteger();
         for (int cs = 1; cs <= testCases; ++cs) {
-            Map<String, Integer> tableNameIndexMap = new HashMap<>();
             List<Table> tableList = new ArrayList<>();
-            readTables(tableList, tableNameIndexMap);
+            this.readTables(tableList);
 
             int nQueries = readLineAsInteger();
-            for (int q = 0; q < nQueries; q++) executeQuery(tableList, tableNameIndexMap);
+            for (int q = 0; q < nQueries; q++) this.executeQuery(tableList);
         }
     }
 
-    private void executeQuery(List<Table> tableList, Map<String, Integer> tableNameIndexMap) {
+    private void executeQuery(List<Table> tableList) {
         QueryExecutor qe = new QueryExecutor();
+        qe.allTables = new HashMap<>();
+        for (Table t : tableList) {
+          try {
+            qe.allTables.put(t.name, (Table) t.clone());
+          }
+          catch (CloneNotSupportedException e) {
+            e.printStackTrace();
+          }
+        }
         qe.queryString = new StringBuilder(readLine());//-> read the first line of the query
 
         String input = "(__ DUMMY STRING __)";
@@ -29,20 +42,19 @@ public class Solution implements Runnable {
             qe.queryString.append("\n");//-> append all the lines separating using newline
             qe.queryString.append(input);//-> appending other lines into query string
         }
-        generateOutput(qe, tableList, tableNameIndexMap);
+        this.generateOutput(qe);
     }
 
-    private void generateOutput(QueryExecutor qe, List<Table> tableList, Map<String, Integer> tableNameIndexMap) {
-        qe.parseQuery(tableList, tableNameIndexMap);
+    private void generateOutput(QueryExecutor qe) {
+        qe.parseQuery();
         System.out.println();
     }
 
-    private void readTables(List<Table> tableList, Map<String, Integer> tableIndexMap) {
+    private void readTables(List<Table> tableList) {
         int nTables = readLineAsInteger();
         for (int i = 0; i < nTables; i++) {
             Table table = new Table();
             table.name = readLine();
-            tableIndexMap.put(table.name, i);
 
             String[] rowColumnInput = readLine().split(" ");
             table.nColumns = Integer.parseInt(rowColumnInput[0]);
@@ -67,6 +79,11 @@ class Table {
 
     public List<String> columnList = new ArrayList<>();
     public List<List<String>> rowList = new ArrayList<>();
+
+  @Override
+  protected Object clone() throws CloneNotSupportedException {
+    return super.clone();
+  }
 }
 
 class QueryExecutor {
@@ -79,7 +96,7 @@ class QueryExecutor {
     //    FROM <first_table_name>
     //    JOIN <second_table_name>
     //    ON <first_table_name>.<a name of the column from the first table> = <second_table_name>.<a name of the column of the second table>
-    public void parseQuery(List<Table> tableList, Map<String, Integer> tableNameIndexMap) {
+    public void parseQuery() {
         String[] queryLines = this.queryString.toString().split("\n");//-> splitting all input fields using newline
         if (queryLines.length > 0) {
             String selectLine = queryLines[0];//-> first line contains all the fields need to show on output
@@ -91,11 +108,11 @@ class QueryExecutor {
         String[] partsAfterFromClause = fromLine.substring("FROM ".length()).split(" ");
 
         String tableName = partsAfterFromClause[0];
-        Table t = tableList.get(tableNameIndexMap.get(tableName));
-        allTables.put(tableName, t);
+        Table mainTable = this.allTables.get(tableName);
+        allTables.put(tableName, mainTable);
         if (partsAfterFromClause.length == 2) {//-> there is an alias:
             String alias = partsAfterFromClause[1];
-            allTables.put(alias, t);
+            allTables.put(alias, mainTable);
         }
         //    SELECT *
         //    FROM <first_table_name>
@@ -103,7 +120,23 @@ class QueryExecutor {
         //    ON <first_table_name>.<a name of the column from the first table> = <second_table_name>.<a name of the column of the second table>
         for (int i = 2; i < queryLines.length; i += 2) {//-> all the lines after index 1 will be join table:
             String[] partsAfterJoinClause = queryLines[i].substring("JOIN ".length()).split(" ");
-            String[] partsAfterOnClause = queryLines[i + 1].substring("ON ".length()).split(" ");
+
+            String joinTableName = partsAfterJoinClause[0];
+            if (partsAfterJoinClause.length > 1) {
+                String alias = partsAfterJoinClause[1];
+                allTables.put(alias, allTables.get(joinTableName));
+            }
+
+            String[] partsAfterOnClause = queryLines[i + 1].substring("ON ".length()).split(" = ");
+
+            String[] leftSide = partsAfterOnClause[0].split("\\.");
+            String[] rightSide = partsAfterOnClause[1].split("\\.");
+
+            String leftTable = leftSide[0];
+            String leftColumn = leftSide[1];
+
+            String rightTable = rightSide[0];
+            String rightColumn = rightSide[1];
         }
     }
 }

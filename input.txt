@@ -14,14 +14,14 @@ id_b b1 b2
 3 12 7
 3
 SELECT *
-FROM table_a
-JOIN table_b
-ON table_a.a1 = table_b.b1
-
-SELECT *
 FROM table_a ta
 JOIN table_b tb
 ON ta.a2 = tb.b2
+
+SELECT *
+FROM table_a
+JOIN table_b
+ON table_a.a1 = table_b.b1
 
 SELECT ta.a1, ta.a2, tb.b1
 FROM table_a ta
